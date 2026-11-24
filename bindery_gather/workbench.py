@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-from . import binding, fulfillment, imposition, materials
+from . import binding, carton, fulfillment, imposition, materials
 from .db import connect, ingest, integer, require
 
 
@@ -15,6 +15,8 @@ ACTIONS = {
     "order": fulfillment.order, "kit": fulfillment.open_kit, "attach": fulfillment.attach, "detach": fulfillment.detach,
     "accessory-lot": fulfillment.accessory_lot, "bridge": fulfillment.bridge, "allocate": fulfillment.allocate,
     "return": fulfillment.return_allocation, "deliver": fulfillment.deliver,
+    "carton-open": carton.open_carton, "carton-read": carton.observe, "carton-seal": carton.seal,
+    "carton-dispatch": carton.dispatch,
 }
 
 

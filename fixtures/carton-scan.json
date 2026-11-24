@@ -1,0 +1,10 @@
+[
+  {"id":"box-atlas", "op":"carton-open", "kit":"kit-atlas", "label":"physical-carton-17"},
+  {"id":"scan-book-1", "op":"carton-read", "carton":"box-atlas", "device":"left-bench", "minute":51, "kind":"book", "reference":"book-b1v1"},
+  {"id":"scan-book-2", "op":"carton-read", "carton":"box-atlas", "device":"right-bench", "minute":51, "kind":"book", "reference":"book-b1v2"},
+  {"id":"scan-alloc-1", "op":"carton-read", "carton":"box-atlas", "device":"left-bench", "minute":52, "kind":"allocation", "reference":"alloc-v1"},
+  {"id":"scan-alloc-2a", "op":"carton-read", "carton":"box-atlas", "device":"right-bench", "minute":52, "kind":"allocation", "reference":"alloc-v2-local"},
+  {"id":"scan-alloc-2b", "op":"carton-read", "carton":"box-atlas", "device":"right-bench", "minute":52, "kind":"allocation", "reference":"alloc-v2-cross"},
+  {"id":"seal-carton", "op":"carton-seal", "carton":"box-atlas", "minute":54},
+  {"id":"dispatch-carton", "op":"carton-dispatch", "carton":"box-atlas", "minute":60}
+]

@@ -39,3 +39,15 @@ python -m bindery_gather kit-status --db staged.sqlite kit-atlas 60
 每条输入有全库唯一 `id` 和 `op`。批次按数组顺序原子提交，完全相同的重试返回 `duplicate`。同事件号冲突或批内错误会回滚整批。纸、帖、书和配件分别有数量账或实物标识。`audit` 从事件重建临时数据库并比较各投影，输出重算的纸材、装订批、套册和历史快照。投影差异退出 1，业务拒绝或读取失败退出 2。
 
 `fixtures/workshop.json` 含两卷盲文版、两张同帖、材料替代、废帖及一次跨册调拨。`late-sample.json` 触发已交付复核。测试亦用 `variants.json` 中的大字版与盲文第二版，以及 `rejections.json` 中的失效批次、误配和越期场景。
+
+## 箱签采录
+
+开放纸箱时登记套册和实物箱标。扫描器分别记录实体书标和配件拨件标及采录分钟。两台采录器可看到同一标。`carton-status` 保留原读数，列出当前套册所需实物、缺少的标签、意外标签、当前放行阻碍及封箱凭证。封箱要求指定日期分钟的套册可放行，实际采到的物料标签与其匹配。此后轻易补写读数会污染凭证，因此封箱后不再采入该箱。交付再次检查实际配件与当前质检状态，晚到抽检与跨卷许可过期继续按既有规则阻挡出货。
+
+示例先从 `fixtures/workshop.json` 另存一个去掉最后 `deliver` 事件的副本并导入，再用同一个数据库运行：
+
+```text
+python -m bindery_gather apply --db staged.sqlite fixtures/carton-scan.json
+python -m bindery_gather carton-status --db staged.sqlite box-atlas 60
+python -m bindery_gather audit --db staged.sqlite
+```

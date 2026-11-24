@@ -4,21 +4,21 @@ from pathlib import Path
 import sqlite3
 import sys
 
-from . import binding, fulfillment, materials, workbench
+from . import binding, carton, fulfillment, materials, workbench
 from .db import connect, encode, require
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("init", "apply", "demo", "issue-report", "paper-stock", "run-status", "kit-status", "audit"):
+    for name in ("init", "apply", "demo", "issue-report", "paper-stock", "run-status", "kit-status", "carton-status", "audit"):
         cmd = commands.add_parser(name)
         cmd.add_argument("--db", required=True)
         if name == "apply":
             cmd.add_argument("file")
-        elif name in {"issue-report", "paper-stock", "run-status", "kit-status"}:
+        elif name in {"issue-report", "paper-stock", "run-status", "kit-status", "carton-status"}:
             cmd.add_argument("key")
-        if name == "kit-status":
+        if name in {"kit-status", "carton-status"}:
             cmd.add_argument("minute", type=int)
         if name == "audit":
             cmd.add_argument("--minute", type=int)
@@ -44,6 +44,8 @@ def main(argv=None):
                 output = binding.run_report(db, opts.key)
             elif opts.command == "kit-status":
                 output = fulfillment.kit_report(db, opts.key, opts.minute)
+            elif opts.command == "carton-status":
+                output = carton.report(db, opts.key, opts.minute)
             else:
                 output = workbench.audit(db, opts.minute)
         print(encode(output))
