@@ -1,0 +1,4 @@
+[
+  {"device": "wide-gauge", "fixture": "wide-jaws", "formats": ["braille", "large-print"], "max_jaw_mm": 12},
+  {"device": "compact-gauge", "fixture": "compact-jaws", "formats": ["braille"], "max_jaw_mm": 2}
+]

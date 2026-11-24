@@ -1,0 +1,3 @@
+device,batch,reading,binding,minute,fixture,jaw_mm,pull,skew
+compact-gauge,backup-61,001,bind-v2,61,compact-jaws,2,6,3
+compact-gauge,backup-61,002,bind-b2,61,compact-jaws,2,8,1

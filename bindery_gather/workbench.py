@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-from . import binding, fulfillment, imposition, materials
+from . import binding, fulfillment, imposition, materials, quality
 from .db import connect, ingest, integer, require
 
 
@@ -12,6 +12,7 @@ ACTIONS = {
     "accessory": imposition.accessory, "seal": imposition.seal,
     "paper": materials.receive, "permit": materials.permit, "issue": materials.issue, "fold": materials.fold,
     "gather": binding.gather, "run": binding.run, "bind": binding.bind, "sample": binding.sample, "certify": binding.certify,
+    "qc-reading": quality.record_reading,
     "order": fulfillment.order, "kit": fulfillment.open_kit, "attach": fulfillment.attach, "detach": fulfillment.detach,
     "accessory-lot": fulfillment.accessory_lot, "bridge": fulfillment.bridge, "allocate": fulfillment.allocate,
     "return": fulfillment.return_allocation, "deliver": fulfillment.deliver,
@@ -26,6 +27,19 @@ def load(path):
 
 def apply(db, records):
     return ingest(db, records, ACTIONS)
+
+
+def intake_quality(db, paths):
+    records = [record for path in paths for record in quality.load_export(path)]
+    return apply(db, records)
+
+
+def recover_quality(db, run_id, inbox):
+    exports = sorted(path for path in Path(inbox).iterdir()
+                     if path.is_file() and path.suffix.lower() in quality.READERS)
+    records = [record for path in exports for record in quality.load_export(path)]
+    decisions = apply(db, quality.recovery_records(db, run_id, records))
+    return {"run": run_id, "exports_scanned": len(exports), "decisions": decisions}
 
 
 def demo(db):

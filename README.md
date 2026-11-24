@@ -39,3 +39,24 @@ python -m bindery_gather kit-status --db staged.sqlite kit-atlas 60
 每条输入有全库唯一 `id` 和 `op`。批次按数组顺序原子提交，完全相同的重试返回 `duplicate`。同事件号冲突或批内错误会回滚整批。纸、帖、书和配件分别有数量账或实物标识。`audit` 从事件重建临时数据库并比较各投影，输出重算的纸材、装订批、套册和历史快照。投影差异退出 1，业务拒绝或读取失败退出 2。
 
 `fixtures/workshop.json` 含两卷盲文版、两张同帖、材料替代、废帖及一次跨册调拨。`late-sample.json` 触发已交付复核。测试亦用 `variants.json` 中的大字版与盲文第二版，以及 `rejections.json` 中的失效批次、误配和越期场景。
+
+## 设备质检采集与补采
+
+`qc-intake` 一次接收一个或多个本地设备导出，并按文件参数及行顺序原子入账。`qc-recover` 扫描目录第一层的 CSV 和 JSON 导出，只收集指定装订批中补采开始时缺少样本的书坯。对这些书坯，优先按采集分钟排序，同分钟按读数事件号排序。支持格式的文件解析失败会拒绝本次采集；目录中的其他文件扩展名会被跳过。
+
+设备号、导出批号和读数号标识一条读数。同一来源的相同字段可重传，修改字段会触发事件号冲突。首条入账读数适用现有版本质检阈值。已有样本的额外读数仍保留原值、采集分钟、夹具及开口，供复核。交付报告跟随其装订批当前结论，交接证据仍按交付时保存。`audit` 会重放原始读数和正式样本。
+
+JSON 导出使用 `spine-readings-v1`，设备号和导出批号位于文件顶部。CSV 每行填写 `device,batch,reading,binding,minute,fixture,jaw_mm,pull,skew`。两种导出都使用作业时钟的分钟、整毫米开口和台账原有的书脊拉力、偏斜整数刻度。`binding` 填绑定事件号。`qc-status` 显示每册的实际纸批、张数和采集记录。传入 `--stations` 时，待采书坯会列出支持其读者规格的工位和各夹具的额定开口。
+
+给一个新数据库依次运行下列命令。`qc-bench.json` 一次导入两册读数。对主批卷二补采时会导入两份离线记录，较早的偏斜和拉力读数触发装订批隔离与已交付套册复核，较晚的复测仍可在采集报告中查看。备用文件中的另一批读数可通过该批单独补采。
+
+```text
+python -B -m bindery_gather apply --db ../qc.sqlite fixtures/workshop.json
+python -B -m bindery_gather apply --db ../qc.sqlite fixtures/variants.json
+python -B -m bindery_gather qc-intake --db ../qc.sqlite fixtures/qc-bench.json
+python -B -m bindery_gather qc-status --db ../qc.sqlite run-b1 --stations fixtures/qc-stations.json
+python -B -m bindery_gather qc-recover --db ../qc.sqlite run-b1 fixtures/qc-inbox
+python -B -m bindery_gather qc-status --db ../qc.sqlite run-b1
+python -B -m bindery_gather kit-status --db ../qc.sqlite kit-atlas 60
+python -B -m bindery_gather audit --db ../qc.sqlite
+```

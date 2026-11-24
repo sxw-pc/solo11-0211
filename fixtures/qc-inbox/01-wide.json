@@ -1,0 +1,8 @@
+{
+  "schema": "spine-readings-v1",
+  "device": "wide-gauge",
+  "batch": "bench-62",
+  "readings": [
+    {"reading": "01", "binding": "bind-v2", "minute": 62, "fixture": "wide-jaws", "jaw_mm": 2, "pull": 8, "skew": 1}
+  ]
+}
