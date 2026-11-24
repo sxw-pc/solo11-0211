@@ -1,0 +1,25 @@
+[
+  {"id":"atlas-l1","op":"edition","title":"river-atlas","format":"large-print","revision":1,"volume_count":1,"min_samples":1,"min_pull":4,"max_skew":3},
+  {"id":"l1-v1","op":"volume","edition":"atlas-l1","ordinal":1,"slots":1},
+  {"id":"l1-s1","op":"signature","volume":"l1-v1","slot":1,"first":1,"sheets":1,"grade":"large-100","grain":"short","turn":"short-edge","head":"head-up"},
+  {"id":"seal-l1","op":"seal","edition":"atlas-l1"},
+  {"id":"paper-large","op":"paper","format":"large-print","grade":"large-100","grain":"short","qty":4},
+  {"id":"issue-l1","op":"issue","signature":"l1-s1","lot":"paper-large","qty":1},
+  {"id":"fold-l1","op":"fold","issue":"issue-l1","piece":"piece-l1","scans":[
+    {"serial":"L-outer","position":1,"front":[4,1],"back":[2,3],"turn":"short-edge","head":"head-up"}]},
+  {"id":"book-l1","op":"gather","volume":"l1-v1","pieces":["piece-l1"]},
+  {"id":"run-l1","op":"run","edition":"atlas-l1"},
+  {"id":"bind-l1","op":"bind","run":"run-l1","book":"book-l1"},
+  {"id":"atlas-b2","op":"edition","title":"river-atlas","format":"braille","revision":2,"volume_count":1,"min_samples":1,"min_pull":7,"max_skew":2},
+  {"id":"b2-v1","op":"volume","edition":"atlas-b2","ordinal":1,"slots":1},
+  {"id":"b2-s1","op":"signature","volume":"b2-v1","slot":1,"first":1,"sheets":1,"grade":"emboss-150","grain":"long","turn":"short-edge","head":"head-down"},
+  {"id":"seal-b2","op":"seal","edition":"atlas-b2"},
+  {"id":"issue-b2","op":"issue","signature":"b2-s1","lot":"paper-emboss","qty":2},
+  {"id":"fold-b2","op":"fold","issue":"issue-b2","piece":"piece-b2","scans":[
+    {"serial":"R-outer","position":1,"front":[4,1],"back":[2,3],"turn":"short-edge","head":"head-down"}]},
+  {"id":"fold-b2-spare","op":"fold","issue":"issue-b2","piece":"piece-b2-spare","scans":[
+    {"serial":"R-spare","position":1,"front":[4,1],"back":[2,3],"turn":"short-edge","head":"head-down"}]},
+  {"id":"book-b2","op":"gather","volume":"b2-v1","pieces":["piece-b2"]},
+  {"id":"run-b2","op":"run","edition":"atlas-b2"},
+  {"id":"bind-b2","op":"bind","run":"run-b2","book":"book-b2"}
+]
