@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-from . import binding, fulfillment, imposition, materials
+from . import binding, fulfillment, imposition, materials, press
 from .db import connect, ingest, integer, require
 
 
@@ -11,6 +11,7 @@ ACTIONS = {
     "edition": imposition.edition, "volume": imposition.volume, "signature": imposition.signature,
     "accessory": imposition.accessory, "seal": imposition.seal,
     "paper": materials.receive, "permit": materials.permit, "issue": materials.issue, "fold": materials.fold,
+    "die-register": press.register, "die-overhaul": press.overhaul, "die-fold": press.fold,
     "gather": binding.gather, "run": binding.run, "bind": binding.bind, "sample": binding.sample, "certify": binding.certify,
     "order": fulfillment.order, "kit": fulfillment.open_kit, "attach": fulfillment.attach, "detach": fulfillment.detach,
     "accessory-lot": fulfillment.accessory_lot, "bridge": fulfillment.bridge, "allocate": fulfillment.allocate,
