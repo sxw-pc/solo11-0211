@@ -43,10 +43,10 @@ class BinderyTests(unittest.TestCase):
             self.apply(op("extra", "accessory", volume="b1-v1", sku="new-tab", qty=1))
 
     def test_paper_approval_scope_and_format(self):
-        self.before("permit-heavy")
+        idx = self.before("permit-heavy")
         with self.assertRaisesRegex(Rejected, "missing substitution permit"):
             self.apply(op("unapproved", "issue", signature="b1-s11", lot="paper-heavy", qty=1))
-        self.apply(*self.work[11:15], *self.variants)
+        self.apply(*self.work[idx:idx + 4], *self.variants)
         self.reject("wrong-paper-format", "different reading format")
         self.reject("wrong-paper-cap", "substitution cap exceeded")
         self.assertEqual(materials.stock(self.db, "paper-heavy")["unissued"], 2)
@@ -124,6 +124,9 @@ class BinderyTests(unittest.TestCase):
         idx = self.before("alloc-v2-cross")
         candidate = self.work[idx]
         self.reject("unapproved-cross-volume", "requires a permit")
+        self.apply(op("spare-v1", "accessory-lot", requirement="tabs-v1", qty=1))
+        with self.assertRaisesRegex(Rejected, "permit scope mismatch"):
+            self.apply({**candidate, "id": "wrong-lot", "lot": "spare-v1"})
         with self.assertRaisesRegex(Rejected, "invalid at allocation minute"):
             self.apply({**candidate, "id": "early-alloc", "minute": 39})
         with self.assertRaisesRegex(Rejected, "permit quantity exceeded"):
