@@ -48,6 +48,19 @@ python -m bindery_gather kit-status --db staged.sqlite kit-atlas 60
 
 JSON 导出使用 `spine-readings-v1`，设备号和导出批号位于文件顶部。CSV 每行填写 `device,batch,reading,binding,minute,fixture,jaw_mm,pull,skew`。两种导出都使用作业时钟的分钟、整毫米开口和台账原有的书脊拉力、偏斜整数刻度。`binding` 填绑定事件号。`qc-status` 显示每册的实际纸批、张数和采集记录。传入 `--stations` 时，待采书坯会列出支持其读者规格的工位和各夹具的额定开口。
 
+### 当班可执行采录单
+
+`qc-status` 另接 `--shift` 班次文件（`qc-shift-v1`，必须与 `--stations` 同时给出）。班次输入按纸级独立标定每张厚度，给出每册可进工位的窗口、每台设备每个夹具的离散开口档位与防压余量，以及开班已经校好的设备、夹具和开口。厚度与档位统一用半毫米整数：标准纸标定 `2` 即每张 1 mm。
+
+夹持厚度只按已绑定且尚无正式样本的册计算：沿 `book_pieces` 找实际配入的合格帖，按实物 `sheets.serial` 计数并取发料纸批的等级，废帖和帖槽名义用纸都不参与；任一纸级未标定则该册不计算厚度并不给档位。某档可夹持当且仅当 `册厚 ≤ 档位 ≤ 册厚 + 防压余量` 且不超夹具额定开口、夹具支持该册读者规格。
+
+每窗口只可采一册、执行一次空夹校验或闲置。更换设备、夹具或开口档的任一项都要独占一个窗口做空夹校验，校验窗口不能同时采读数，校好的组合跨窗口携带，直到下一次换装。枚举只读，不写质检样本：返回整班所有不被更大可采集合包含的采录单，每张单给出按窗口可复核的操作、可采册号集合，以及其他在册未覆盖的原因——`uncalibrated-grade`（纸级未标定）、`no-physical-jaw-level`（无物理可用档）或 `cannot-fit-in-windows`（有档但窗口预算不足以完成换装和采录）。空班或整班无可采册时返回全闲置见证和 `no-capturable-binding`。
+
+```text
+python -B -m bindery_gather qc-status --db ../qc.sqlite run-b1 \
+  --stations fixtures/qc-stations.json --shift fixtures/qc-shift-night.json
+```
+
 给一个新数据库依次运行下列命令。`qc-bench.json` 一次导入两册读数。对主批卷二补采时会导入两份离线记录，较早的偏斜和拉力读数触发装订批隔离与已交付套册复核，较晚的复测仍可在采集报告中查看。备用文件中的另一批读数可通过该批单独补采。
 
 ```text

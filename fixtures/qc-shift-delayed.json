@@ -1,0 +1,13 @@
+{
+  "schema": "qc-shift-v1",
+  "grade_thickness_half_mm": {"emboss-150": 2, "emboss-170": 3},
+  "windows": [
+    {"window": "window-1", "bindings": ["bind-v2"]},
+    {"window": "window-2", "bindings": ["bind-v1", "bind-v2"]}
+  ],
+  "stations": [
+    {"device": "compact-gauge", "fixture": "compact-jaws", "margin_half_mm": 2, "levels_half_mm": [4]},
+    {"device": "wide-gauge", "fixture": "wide-jaws", "margin_half_mm": 2, "levels_half_mm": [4, 8]}
+  ],
+  "ready": {"device": "compact-gauge", "fixture": "compact-jaws", "jaw_half_mm": 4}
+}

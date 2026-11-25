@@ -29,6 +29,7 @@ def main(argv=None):
             cmd.add_argument("inbox")
         if name == "qc-status":
             cmd.add_argument("--stations")
+            cmd.add_argument("--shift")
         if name == "audit":
             cmd.add_argument("--minute", type=int)
     opts = parser.parse_args(argv)
@@ -49,7 +50,10 @@ def main(argv=None):
                 output = workbench.recover_quality(db, opts.run, opts.inbox)
             elif opts.command == "qc-status":
                 stations = quality.load_stations(opts.stations) if opts.stations else ()
-                output = quality.report(db, opts.run, stations)
+                shift = quality.load_shift(opts.shift) if opts.shift else None
+                if shift is not None:
+                    require(opts.stations, "shift planning requires --stations")
+                output = quality.report(db, opts.run, stations, shift)
             elif opts.command == "demo":
                 output = {"decisions": workbench.demo(db), **workbench.read_state(db)}
             elif opts.command == "issue-report":

@@ -16,6 +16,9 @@ BENCH = FIXTURES / "qc-bench.json"
 INBOX = FIXTURES / "qc-inbox"
 COMPACT = INBOX / "02-compact.csv"
 STATIONS = FIXTURES / "qc-stations.json"
+NIGHT_SHIFT = FIXTURES / "qc-shift-night.json"
+SINGLE_SHIFT = FIXTURES / "qc-shift-single.json"
+DELAYED_SHIFT = FIXTURES / "qc-shift-delayed.json"
 
 
 class QualityTests(unittest.TestCase):
@@ -179,3 +182,175 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(cli("run-status", "run-b1")["status"], "run-quarantined")
         self.assertEqual(cli("kit-status", "kit-atlas", "60")["status"], "handover-review-required")
         self.assertEqual(cli("audit")["audit"], "verified")
+
+    def stage_pending_workshop(self, mutate=None):
+        staged = [r for r in self.workshop if r["op"] not in {"sample", "certify", "deliver"}]
+        if mutate:
+            staged = mutate(copy.deepcopy(staged))
+        workbench.apply(self.db, staged)
+        return quality.load_stations(STATIONS)
+
+    def write_shift(self, document):
+        path = self.directory / "shift.json"
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
+
+    def test_status_reproduction_lists_both_fixtures_before_shift_planning(self):
+        stations = self.stage_pending_workshop()
+        report = quality.report(self.db, "run-b1", stations)
+        self.assertEqual(report["missing"], ["bind-v1", "bind-v2"])
+        for member in report["members"]:
+            self.assertEqual([s["fixture"] for s in member["station_candidates"]],
+                             ["compact-jaws", "wide-jaws"])
+            self.assertNotIn("shift_plan", report)
+            self.assertNotIn("thickness_half_mm", member)
+        # Actual paper: heavy lot contributes only the two folded sheets that were gathered.
+        first = report["members"][0]
+        self.assertEqual([(p["lot"], p["sheets"]) for p in first["paper"]],
+                         [("paper-heavy", 2), ("paper-emboss", 1)])
+
+    def test_night_shift_enumerates_two_maximal_plans_with_window_witnesses(self):
+        stations = self.stage_pending_workshop()
+        report = quality.report(self.db, "run-b1", stations, quality.load_shift(NIGHT_SHIFT))
+        first, second = report["members"]
+        # 2 heavy sheets at 1.5 mm plus 1 standard sheet at 1 mm => 4 mm; volume 2 is 1 mm.
+        self.assertEqual((first["thickness_half_mm"], second["thickness_half_mm"]), (8, 2))
+        self.assertEqual(first["grade_sheets"], {"emboss-150": 1, "emboss-170": 2})
+        self.assertEqual([(j["fixture"], j["jaw_half_mm"]) for j in first["jaw_options"]], [("wide-jaws", 8)])
+        self.assertEqual([(j["fixture"], j["jaw_half_mm"]) for j in second["jaw_options"]],
+                         [("compact-jaws", 4), ("wide-jaws", 4)])
+        plan = report["shift_plan"]
+        self.assertEqual(plan["result"], "plans-enumerated")
+        self.assertEqual([p["captures"] for p in plan["plans"]], [["bind-v1"], ["bind-v2"]])
+        volume_one, volume_two = plan["plans"]
+        self.assertEqual([(step["window"], step["action"]) for step in volume_one["schedule"]],
+                         [("window-1", "empty-fixture-check"), ("window-2", "capture")])
+        self.assertEqual(volume_one["schedule"][0]["jaw_half_mm"], 8)
+        self.assertEqual(volume_one["schedule"][1]["binding"], "bind-v1")
+        self.assertEqual([(step["window"], step["action"]) for step in volume_two["schedule"]],
+                         [("window-1", "capture"), ("window-2", "idle")])
+        self.assertEqual(volume_two["schedule"][0]["fixture"], "compact-jaws")
+        # The wide 4 mm level can never capture volume 1: it is not among its physical jaw options.
+        self.assertEqual(volume_one["omitted"][0]["reason"], "cannot-fit-in-windows")
+        self.assertEqual(volume_two["omitted"][0]["reason"], "cannot-fit-in-windows")
+        # Re-running returns the identical deterministic witness for the same capture set.
+        again = quality.report(self.db, "run-b1", stations, quality.load_shift(NIGHT_SHIFT))
+        self.assertEqual(again["shift_plan"], plan)
+
+    def test_single_window_loses_volume_one_to_a_changeover_then_standard_paper_fits(self):
+        stations = self.stage_pending_workshop()
+        blocked = quality.report(self.db, "run-b1", stations, quality.load_shift(SINGLE_SHIFT))["shift_plan"]
+        self.assertEqual(blocked["result"], "no-capturable-binding")
+        self.assertEqual(blocked["plans"][0]["captures"], [])
+        self.assertEqual(blocked["plans"][0]["schedule"], [{"window": "window-1", "action": "idle"}])
+        reasons = {row["binding"]: row["reason"] for row in blocked["plans"][0]["omitted"]}
+        self.assertEqual(reasons, {"bind-v1": "cannot-fit-in-windows", "bind-v2": "no-physical-jaw-level"})
+
+        def standard_issue(records):
+            for record in records:
+                if record.get("id") == "issue-11":
+                    record["lot"] = "paper-emboss"
+            return records
+
+        with connect(":memory:") as db:
+            self.db = db
+            stations = self.stage_pending_workshop(standard_issue)
+            fixed = quality.report(db, "run-b1", stations, quality.load_shift(SINGLE_SHIFT))["shift_plan"]
+        self.assertEqual(fixed["plans"][0]["captures"], ["bind-v1"])
+        step = fixed["plans"][0]["schedule"][0]
+        self.assertEqual((step["action"], step["binding"], step["jaw_half_mm"]),
+                         ("capture", "bind-v1", 6))
+        self.assertEqual(fixed["plans"][0]["omitted"][0]["reason"], "no-physical-jaw-level")
+
+    def test_delayed_window_uses_idle_and_early_check_as_distinct_witnesses(self):
+        stations = self.stage_pending_workshop()
+        plan = quality.report(self.db, "run-b1", stations, quality.load_shift(DELAYED_SHIFT))["shift_plan"]
+        self.assertEqual([p["captures"] for p in plan["plans"]], [["bind-v1"], ["bind-v2"]])
+        volume_one, volume_two = plan["plans"]
+        # Volume 1 is not enterable until window 2: the check has to be banked in window 1.
+        self.assertEqual([(s["window"], s["action"]) for s in volume_one["schedule"]],
+                         [("window-1", "empty-fixture-check"), ("window-2", "capture")])
+        # Volume 2 stays on the ready compact combination and idles through its unavailable window.
+        self.assertEqual([(s["window"], s["action"]) for s in volume_two["schedule"]],
+                         [("window-1", "capture"), ("window-2", "idle")])
+
+    def test_uncalibrated_grade_is_reported_instead_of_using_nominal_paper(self):
+        stations = self.stage_pending_workshop()
+        shift = quality.load_shift(NIGHT_SHIFT)
+        del shift["grade_thickness_half_mm"]["emboss-170"]
+        report = quality.report(self.db, "run-b1", stations, shift)
+        first = report["members"][0]
+        self.assertIsNone(first["thickness_half_mm"])
+        self.assertEqual(first["uncalibrated_grades"], ["emboss-170"])
+        self.assertEqual(first["jaw_options"], [])
+        plan = report["shift_plan"]
+        self.assertEqual([p["captures"] for p in plan["plans"]], [["bind-v2"]])
+        omitted = {row["binding"]: row["reason"] for row in plan["plans"][0]["omitted"]}
+        self.assertEqual(omitted, {"bind-v1": "uncalibrated-grade"})
+
+    def test_no_physical_level_and_empty_shift_still_return_explicit_results(self):
+        stations = self.stage_pending_workshop()
+        shift = quality.load_shift(NIGHT_SHIFT)
+        for station in shift["stations"]:
+            station["levels_half_mm"] = [level for level in station["levels_half_mm"] if level != 8]
+        report = quality.report(self.db, "run-b1", stations, shift)
+        plan = report["shift_plan"]
+        self.assertEqual(plan["result"], "plans-enumerated")
+        self.assertEqual([p["captures"] for p in plan["plans"]], [["bind-v2"]])
+        self.assertEqual(plan["plans"][0]["omitted"][0]["reason"], "no-physical-jaw-level")
+
+        idle = quality.load_shift(self.write_shift({
+            "schema": quality.SHIFT_SCHEMA,
+            "grade_thickness_half_mm": {"emboss-150": 2, "emboss-170": 3},
+            "windows": [{"window": "window-1", "bindings": ["bind-v1", "bind-v2"]}],
+            "stations": [{"device": "wide-gauge", "fixture": "wide-jaws",
+                          "margin_half_mm": 0, "levels_half_mm": [8, 16]}],
+            "ready": {"device": "wide-gauge", "fixture": "wide-jaws", "jaw_half_mm": 16},
+        }))
+        empty = quality.report(self.db, "run-b1", stations, idle)["shift_plan"]
+        self.assertEqual(empty["result"], "no-capturable-binding")
+        self.assertEqual(empty["plans"][0]["captures"], [])
+        self.assertEqual(empty["plans"][0]["schedule"], [{"window": "window-1", "action": "idle"}])
+        reasons = {row["binding"]: row["reason"] for row in empty["plans"][0]["omitted"]}
+        self.assertEqual(reasons, {"bind-v1": "cannot-fit-in-windows", "bind-v2": "no-physical-jaw-level"})
+
+    def test_shift_input_is_validated_against_stations_windows_and_limits(self):
+        self.stage_pending_workshop()
+        with self.assertRaisesRegex(Rejected, "shift planning needs station fixtures"):
+            quality.build_shift_plan(self.db, "run-b1", (), quality.load_shift(NIGHT_SHIFT))
+        unknown_binding = quality.load_shift(NIGHT_SHIFT)
+        unknown_binding["windows"][0]["bindings"].append("bind-ghost")
+        with self.assertRaisesRegex(Rejected, "not pending in this run"):
+            quality.report(self.db, "run-b1", quality.load_stations(STATIONS), unknown_binding)
+        over_levels = quality.load_shift(NIGHT_SHIFT)
+        over_levels["stations"][1]["levels_half_mm"] = [2, 4, 6, 8, 10]
+        with self.assertRaisesRegex(Rejected, "one to four jaw levels"):
+            quality.load_shift(self.write_shift(over_levels))
+        bad_ready = quality.load_shift(NIGHT_SHIFT)
+        bad_ready["ready"]["jaw_half_mm"] = 6
+        with self.assertRaisesRegex(Rejected, "unlisted jaw level"):
+            quality.report(self.db, "run-b1", quality.load_stations(STATIONS), bad_ready)
+        over_rated = quality.load_shift(NIGHT_SHIFT)
+        over_rated["stations"][0]["levels_half_mm"] = [24]
+        with self.assertRaisesRegex(Rejected, "rated opening"):
+            quality.report(self.db, "run-b1", quality.load_stations(STATIONS), over_rated)
+
+    def test_cli_shift_planning_round_trip(self):
+        db = self.directory / "shift.sqlite"
+
+        def cli(command, *args):
+            proc = subprocess.run([sys.executable, "-B", "-m", "bindery_gather", command, "--db", str(db), *map(str, args)],
+                                  cwd=FIXTURES.parent, capture_output=True, text=True, check=True)
+            return json.loads(proc.stdout)
+
+        staged = [r for r in self.workshop if r["op"] not in {"sample", "certify", "deliver"}]
+        path = self.directory / "staged.json"
+        path.write_text(json.dumps(staged), encoding="utf-8")
+        cli("apply", path)
+        plan = cli("qc-status", "run-b1", "--stations", STATIONS, "--shift", NIGHT_SHIFT)["shift_plan"]
+        self.assertEqual([p["captures"] for p in plan["plans"]], [["bind-v1"], ["bind-v2"]])
+        proc = subprocess.run([sys.executable, "-B", "-m", "bindery_gather", "qc-status", "--db", str(db),
+                               "run-b1", "--shift", NIGHT_SHIFT],
+                              cwd=FIXTURES.parent, capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("shift planning requires --stations", proc.stderr)
