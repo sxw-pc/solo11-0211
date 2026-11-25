@@ -64,6 +64,34 @@ CREATE TABLE IF NOT EXISTS allocations(
  bridge TEXT REFERENCES bridges, returned TEXT);
 CREATE TABLE IF NOT EXISTS deliveries(
  id TEXT PRIMARY KEY, kit TEXT NOT NULL UNIQUE REFERENCES kits, minute INTEGER NOT NULL, evidence TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS proof_intakes(
+ id TEXT PRIMARY KEY, book TEXT NOT NULL REFERENCES books);
+CREATE TABLE IF NOT EXISTS proof_segments(
+ id TEXT PRIMARY KEY, intake TEXT REFERENCES proof_intakes, book TEXT REFERENCES books,
+ ordinal INTEGER NOT NULL, mirrored INTEGER, ruler_event TEXT, version INTEGER NOT NULL DEFAULT 0,
+ status TEXT NOT NULL DEFAULT 'open', conflict TEXT);
+CREATE TABLE IF NOT EXISTS proof_rulers(
+ id TEXT PRIMARY KEY, segment TEXT NOT NULL REFERENCES proof_segments, mirrored INTEGER,
+ serial TEXT, side TEXT, left_page INTEGER, right_page INTEGER,
+ agrees INTEGER, conflicts INTEGER NOT NULL DEFAULT 0, detail TEXT NOT NULL DEFAULT '{}');
+CREATE TABLE IF NOT EXISTS proof_readings(
+ id TEXT PRIMARY KEY, intake TEXT, segment TEXT NOT NULL REFERENCES proof_segments, book TEXT REFERENCES books,
+ serial TEXT NOT NULL, side TEXT NOT NULL, half TEXT NOT NULL, kind TEXT NOT NULL, defect_key TEXT NOT NULL,
+ piece TEXT, position INTEGER, face TEXT, eligible INTEGER NOT NULL, reasons TEXT NOT NULL DEFAULT '[]',
+ duplicate_of TEXT, source_file TEXT, mirrored INTEGER, located INTEGER NOT NULL,
+ page INTEGER, spread TEXT);
+CREATE TABLE IF NOT EXISTS proof_handling(
+ id TEXT PRIMARY KEY, reading TEXT NOT NULL, segment TEXT, book TEXT,
+ decision TEXT NOT NULL, kind TEXT, order_id TEXT, detail TEXT NOT NULL DEFAULT '{}');
+CREATE TABLE IF NOT EXISTS proof_orders(
+ id TEXT PRIMARY KEY, event TEXT UNIQUE NOT NULL, book TEXT NOT NULL REFERENCES books,
+ segment TEXT NOT NULL REFERENCES proof_segments, reading TEXT NOT NULL, defect_key TEXT NOT NULL,
+ kind TEXT NOT NULL, pages TEXT NOT NULL, status TEXT NOT NULL, review TEXT NOT NULL DEFAULT 'ok',
+ evidence TEXT NOT NULL, result TEXT, complete_event TEXT, withdraw_event TEXT);
+CREATE INDEX IF NOT EXISTS proof_readings_defect ON proof_readings(defect_key);
+CREATE INDEX IF NOT EXISTS proof_orders_defect ON proof_orders(defect_key, kind);
+CREATE UNIQUE INDEX IF NOT EXISTS proof_orders_unique_valid
+ ON proof_orders(defect_key, kind) WHERE status IN ('pending','completed');
 """
 
 

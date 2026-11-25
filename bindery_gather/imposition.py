@@ -90,6 +90,44 @@ def sheet_faces(sig, position):
     return [last, first], [first + 1, last - 1]
 
 
+def spread_pages(pair):
+    """Return the even-first reading spread ``[even, odd]`` for a face pair.
+
+    Device halves only identify one of the two pages of a recorded face.  Most
+    face pairs (for example the outermost ``[8, 1]``) are not facing reading
+    pages; only two consecutive pages beginning on an even page form a real
+    spread such as ``[4, 5]``.  Returns ``None`` for every other pair.
+    """
+    if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+        return None
+    if any(type(page) is not int for page in pair):
+        return None
+    low, high = sorted(pair)
+    if low >= 1 and low % 2 == 0 and high == low + 1:
+        return [low, high]
+    return None
+
+
+# Vocabulary aliases used by the proofreading intake.
+facing_pair = spread_pages
+reading_pair = spread_pages
+continuous_pair = spread_pages
+spread_pair = spread_pages
+
+
+def half_page(pair, half, mirrored):
+    """Map a camera half (``left``/``right``) to its page.
+
+    ``pair`` is the canonical left-to-right face pair from :func:`sheet_faces`.
+    ``mirrored`` is the whole setup segment's calibration result.
+    """
+    require(isinstance(pair, (list, tuple)) and len(pair) == 2, "invalid face pair")
+    choice(half, ("left", "right"), "camera half")
+    require(isinstance(mirrored, bool), "segment ruler has no left/right correspondence")
+    left, right = pair if not mirrored else (pair[1], pair[0])
+    return left if half == "left" else right
+
+
 def verify_layout(sig, scans):
     require(isinstance(scans, list) and len(scans) == sig["sheets"], "wrong physical sheet count")
     seen_positions, seen_serials, faults = set(), set(), []
