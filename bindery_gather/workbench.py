@@ -11,6 +11,7 @@ ACTIONS = {
     "edition": imposition.edition, "volume": imposition.volume, "signature": imposition.signature,
     "accessory": imposition.accessory, "seal": imposition.seal,
     "paper": materials.receive, "permit": materials.permit, "issue": materials.issue, "fold": materials.fold,
+    "paper-scan": materials.scan, "label": materials.label, "confirm": materials.confirm,
     "gather": binding.gather, "run": binding.run, "bind": binding.bind, "sample": binding.sample, "certify": binding.certify,
     "order": fulfillment.order, "kit": fulfillment.open_kit, "attach": fulfillment.attach, "detach": fulfillment.detach,
     "accessory-lot": fulfillment.accessory_lot, "bridge": fulfillment.bridge, "allocate": fulfillment.allocate,
@@ -41,6 +42,7 @@ def read_state(db, minute=None):
     def ids(table):
         return [row[0] for row in db.execute(f"SELECT id FROM {table} ORDER BY id")]
     return {"as_of": minute, "paper": [materials.stock(db, key) for key in ids("paper_lots")],
+            "manifests": [materials.packing_list(db, key) for key in ids("manifests")],
             "issues": [materials.issue_report(db, key) for key in ids("issues")],
             "runs": [binding.run_report(db, key) for key in ids("runs")],
             "kits": [fulfillment.kit_report(db, key, minute) for key in ids("kits")],

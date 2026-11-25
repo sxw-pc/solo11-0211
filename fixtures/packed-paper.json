@@ -1,0 +1,15 @@
+[
+  {"id":"pack-scan-p","op":"paper-scan","manifest":"pack-b1","bundle":"pack-p","format":"braille","qty":3,"grain":"long","candidates":["emboss-150","emboss-170"]},
+  {"id":"pack-scan-q","op":"paper-scan","manifest":"pack-b1","bundle":"pack-q","format":"braille","qty":3,"grain":"long","candidates":["emboss-150","emboss-170"]},
+  {"id":"pack-permit-p","op":"permit","signature":"b1-s11","lot":"pack-p","cap":2},
+  {"id":"pack-t1","op":"issue","signature":"b1-s11","lot":"pack-p","qty":2,"basis":"tentative"},
+  {"id":"pack-fold-p","op":"fold","issue":"pack-t1","piece":"piece-pack-p","scans":[
+    {"serial":"P-outer","position":1,"front":[8,1],"back":[2,7],"turn":"long-edge","head":"head-up"},
+    {"serial":"P-inner","position":2,"front":[6,3],"back":[4,5],"turn":"long-edge","head":"head-up"}]},
+  {"id":"pack-label-p","op":"label","bundle":"pack-p","grade":"emboss-170"},
+  {"id":"pack-confirm-p","op":"confirm","issue_id":"pack-t1"},
+  {"id":"pack-q-issue","op":"issue","signature":"b1-s11","lot":"pack-q","qty":3},
+  {"id":"pack-fold-q-bad","op":"fold","issue":"pack-q-issue","piece":"piece-pack-q-bad","scans":[
+    {"serial":"Q-outer","position":1,"front":[8,1],"back":[2,7],"turn":"short-edge","head":"head-up"},
+    {"serial":"Q-inner","position":2,"front":[6,3],"back":[4,5],"turn":"long-edge","head":"head-up"}]}
+]

@@ -23,10 +23,20 @@ python -m bindery_gather apply --db staged.sqlite fixtures/late-sample.json
 python -m bindery_gather kit-status --db staged.sqlite kit-atlas 60
 ```
 
+两包同清单纸材的扫码采录可用 `fixtures/workshop.json` 的前 9 条封版事件叠加 `fixtures/packed-paper.json`：
+
+```text
+python -m bindery_gather apply --db packed.sqlite fixtures/packed-paper.json
+python -m bindery_gather manifest --db packed.sqlite pack-b1
+python -m bindery_gather paper-review --db packed.sqlite b1-s11 pack-p pack-q
+python -m bindery_gather paper-balance --db packed.sqlite pack-p b1-s11
+```
+
 | 工位及事件 | 业务规则 |
 | --- | --- |
 | 制版 `edition`、`volume`、`signature`、`accessory`、`seal` | 书目、读者规格及修订号绑定版本。封版前逐卷校验所有帖槽和从第 1 页开始的连续页段，封版后冻结配件定额和版样。 |
 | 纸材 `paper`、`permit`、`issue` | 领料受批次余量、阅读规格及纹向约束。替代等级须持有这批纸和这款纸帖的审批，还受累计发料上限约束。 |
+| 扫码纸包 `paper-scan`、`label`、`confirm`、`issue`（`basis="tentative"`） | 两包纸共享同一装箱清单，清单保证一包标准档、一包偏厚档。扫码仅保留包号、实扫张数、格式、纹向和候选等级；两包的候选等级须共同解释清单，不能各取最有利等级。等级未定前的暂发凭据必须对每种尚相容的归属都合法，并在每种归属下分别占用标准料余量或代料额度；两种余额分开核算，不合并成通用余额。补录可靠标签后只保留相容归属，既有发料与隔离事实不变。`confirm` 在等级唯一后把暂发并入正式账。 |
 | 折页 `fold` | 第一张为最外印张。封版规定每张左右页对、翻边和版头方向，扫描输入可乱序。有效形状但错页或错向的整帖隔离计废，仍扣除所用印张。印张序列号与帖号不重复。 |
 | 配帖 `gather` | 按卷的槽序扫描实物折帖。废帖、重复帖、错槽和其他版本均被拒绝。每件合格帖仅可占一个书坯。 |
 | 装订 `run`、`bind`、`sample`、`certify` | 同版本书坯进入装订批。每本至多一个脊检结果，拉力不低于下限且偏斜不超过上限才记通过。足量且全合格才出证并冻结批次成员，补录失败样本使整批隔离。 |
@@ -38,4 +48,4 @@ python -m bindery_gather kit-status --db staged.sqlite kit-atlas 60
 
 每条输入有全库唯一 `id` 和 `op`。批次按数组顺序原子提交，完全相同的重试返回 `duplicate`。同事件号冲突或批内错误会回滚整批。纸、帖、书和配件分别有数量账或实物标识。`audit` 从事件重建临时数据库并比较各投影，输出重算的纸材、装订批、套册和历史快照。投影差异退出 1，业务拒绝或读取失败退出 2。
 
-`fixtures/workshop.json` 含两卷盲文版、两张同帖、材料替代、废帖及一次跨册调拨。`late-sample.json` 触发已交付复核。测试亦用 `variants.json` 中的大字版与盲文第二版，以及 `rejections.json` 中的失效批次、误配和越期场景。
+`fixtures/workshop.json` 含两卷盲文版、两张同帖、材料替代、废帖及一次跨册调拨。`late-sample.json` 触发已交付复核。`packed-paper.json` 在前 9 条封版事件后演示两包纸的扫码采录、暂发、补标与隔离。测试亦用 `variants.json` 中的大字版与盲文第二版，以及 `rejections.json` 中的失效批次、误配和越期场景。
